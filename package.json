@@ -14,11 +14,12 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "gh-pages": "^5.0.0",
-    "@playwright/test": "^1.40.0"
+    "@playwright/test": "^1.40.0",
+    "gh-pages": "^5.0.0"
   },
   "eslintConfig": {
     "extends": [
