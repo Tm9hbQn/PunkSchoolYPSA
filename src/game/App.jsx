@@ -4,17 +4,19 @@ import SetupPage from './pages/SetupPage.jsx';
 import PlayerPage from './pages/PlayerPage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 
-// Hash routing: #play/GAMEID/INDEX | #play/BASE64/INDEX | #setup | #admin | (empty) = home
+/*
+  Hash routing:
+    (empty)             → HomePage
+    #setup              → SetupPage (admin creates game)
+    #admin              → AdminPage (manage character DB)
+    #play/ENCODED       → PlayerPage (name picker → game view)
+*/
 
 function parseHash() {
-  const hash = window.location.hash.slice(1); // remove leading #
+  const hash = window.location.hash.slice(1);
   if (hash.startsWith('play/')) {
-    const parts = hash.slice(5).split('/');
-    if (parts.length >= 2) {
-      const myIndex = parseInt(parts[parts.length - 1], 10);
-      const gameIdOrEncoded = parts.slice(0, -1).join('/');
-      return { page: 'play', gameIdOrEncoded, myIndex };
-    }
+    const encoded = hash.slice(5);
+    return { page: 'play', encoded };
   }
   if (hash === 'setup') return { page: 'setup' };
   if (hash === 'admin') return { page: 'admin' };
@@ -37,7 +39,7 @@ export default function App() {
   };
 
   if (route.page === 'play')
-    return <PlayerPage gameIdOrEncoded={route.gameIdOrEncoded} myIndex={route.myIndex} navigate={navigate} />;
+    return <PlayerPage encoded={route.encoded} navigate={navigate} />;
   if (route.page === 'setup') return <SetupPage navigate={navigate} />;
   if (route.page === 'admin') return <AdminPage navigate={navigate} />;
   return <HomePage navigate={navigate} />;
