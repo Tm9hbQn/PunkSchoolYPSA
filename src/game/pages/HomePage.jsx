@@ -15,9 +15,11 @@ const S = {
     letterSpacing: '-1px',
     textAlign: 'center',
     background: 'linear-gradient(90deg, #ff2a6d, #7b2ff7, #05d9e8)',
+    backgroundSize: '200% auto',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     lineHeight: 1.1,
+    animation: 'gradientShift 4s ease infinite',
   },
   sub: {
     color: '#a0a0cc',
@@ -25,6 +27,7 @@ const S = {
     textAlign: 'center',
     maxWidth: '480px',
     lineHeight: 1.6,
+    animation: 'fadeInUp 0.8s ease-out 0.3s both',
   },
   btnGroup: {
     display: 'flex',
@@ -32,6 +35,7 @@ const S = {
     gap: '1rem',
     width: '100%',
     maxWidth: '340px',
+    animation: 'fadeInUp 0.8s ease-out 0.5s both',
   },
   btnPrimary: {
     padding: '1rem 2rem',
@@ -43,7 +47,7 @@ const S = {
     border: 'none',
     borderRadius: '12px',
     cursor: 'pointer',
-    transition: 'opacity .2s, transform .1s',
+    transition: 'opacity .2s, transform .15s, box-shadow .2s',
   },
   btnSecondary: {
     padding: '1rem 2rem',
@@ -55,11 +59,12 @@ const S = {
     border: '2px solid #05d9e8',
     borderRadius: '12px',
     cursor: 'pointer',
-    transition: 'background .2s',
+    transition: 'background .2s, transform .15s',
   },
   emoji: {
     fontSize: '5rem',
     lineHeight: 1,
+    animation: 'floatBounce 3s ease-in-out infinite',
   },
 };
 
@@ -77,16 +82,16 @@ export default function HomePage({ navigate }) {
         <button
           style={S.btnPrimary}
           onClick={() => navigate('setup')}
-          onMouseEnter={(e) => (e.target.style.opacity = '.85')}
-          onMouseLeave={(e) => (e.target.style.opacity = '1')}
+          onMouseEnter={(e) => { e.target.style.transform = 'scale(1.03)'; e.target.style.boxShadow = '0 0 30px rgba(255,42,109,.4)'; }}
+          onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
         >
           🃏 צור משחק חדש
         </button>
         <button
           style={S.btnSecondary}
           onClick={() => navigate('admin')}
-          onMouseEnter={(e) => (e.target.style.background = 'rgba(5,217,232,.1)')}
-          onMouseLeave={(e) => (e.target.style.background = 'transparent')}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(5,217,232,.1)'; e.target.style.transform = 'scale(1.03)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; e.target.style.transform = 'scale(1)'; }}
         >
           📋 נהל רשימת דמויות
         </button>
