@@ -1,13 +1,12 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import {
   decodeGame,
-  loadGameSession,
-  updatePlayerInSession,
   getQuestionLog,
   addQuestion,
   removeQuestion,
   getAllCharacters,
   loadDB,
+  encodeGame,
 } from '../utils/gameUtils.js';
 
 const CARD_COLORS = [
@@ -21,17 +20,15 @@ const CARD_COLORS = [
 
 const EMOJIS = ['🦁', '🐯', '🦊', '🐺', '🦅', '🐻', '🦋', '🐲', '🦄', '🌙', '⚡', '🔥'];
 
-function getEmoji(index) {
-  return EMOJIS[index % EMOJIS.length];
-}
+function getEmoji(i) { return EMOJIS[i % EMOJIS.length]; }
 
-function getCardGradient(index) {
-  const [c1, c2] = CARD_COLORS[index % CARD_COLORS.length];
+function getCardGradient(i) {
+  const [c1, c2] = CARD_COLORS[i % CARD_COLORS.length];
   return `linear-gradient(135deg, ${c1}22, ${c2}18)`;
 }
 
-function getCardBorder(index) {
-  const [c1] = CARD_COLORS[index % CARD_COLORS.length];
+function getCardBorder(i) {
+  const [c1] = CARD_COLORS[i % CARD_COLORS.length];
   return `2px solid ${c1}55`;
 }
 
@@ -43,6 +40,53 @@ const S = {
     fontFamily: 'Heebo, sans-serif',
     color: '#e0e0ff',
   },
+  // ── Name picker ──
+  pickerWrap: {
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #0d0d1a 0%, #12122a 100%)',
+    padding: '2rem',
+    fontFamily: 'Heebo, sans-serif',
+    color: '#e0e0ff',
+    gap: '1.5rem',
+  },
+  pickerTitle: {
+    fontSize: '2rem',
+    fontWeight: 800,
+    background: 'linear-gradient(90deg, #ff2a6d, #7b2ff7)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    textAlign: 'center',
+  },
+  pickerSub: {
+    color: '#a0a0cc',
+    fontSize: '1rem',
+    textAlign: 'center',
+  },
+  pickerGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+    gap: '1rem',
+    width: '100%',
+    maxWidth: '500px',
+  },
+  pickerBtn: {
+    padding: '1.2rem .75rem',
+    background: 'rgba(123,47,247,.12)',
+    border: '2px solid rgba(123,47,247,.35)',
+    borderRadius: '14px',
+    color: '#e0e0ff',
+    cursor: 'pointer',
+    fontSize: '1.2rem',
+    fontWeight: 700,
+    fontFamily: 'Heebo, sans-serif',
+    textAlign: 'center',
+    transition: 'transform 0.2s, border-color 0.2s, background 0.2s',
+  },
+  // ── Game view ──
   header: {
     textAlign: 'center',
     marginBottom: '1.5rem',
@@ -164,44 +208,68 @@ const S = {
     marginTop: '.4rem',
     fontWeight: 500,
   },
-  wonOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    background: 'rgba(0,0,0,.5)',
-    borderRadius: '18px',
+  // ── Action buttons ──
+  actionBar: {
     display: 'flex',
-    alignItems: 'center',
+    gap: '.75rem',
     justifyContent: 'center',
-    fontSize: '2rem',
-    color: '#05d9e8',
-    fontWeight: 800,
-  },
-  errorWrap: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: '#0d0d1a',
-    padding: '2rem',
-    textAlign: 'center',
-    fontFamily: 'Heebo, sans-serif',
-    color: '#e0e0ff',
-    gap: '1rem',
-  },
-  backBtn: {
     marginTop: '1rem',
-    background: 'rgba(123,47,247,.2)',
-    border: '1px solid rgba(123,47,247,.5)',
-    borderRadius: '10px',
-    color: '#c084fc',
-    cursor: 'pointer',
-    padding: '.75rem 1.5rem',
-    fontSize: '1rem',
-    fontFamily: 'Heebo, sans-serif',
-    transition: 'transform 0.15s',
+    flexWrap: 'wrap',
   },
-  // Question log
+  winBtn: {
+    padding: '.6rem 1.5rem',
+    background: 'linear-gradient(90deg, #05d9e8, #7b2ff7)',
+    border: 'none',
+    borderRadius: '10px',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    fontWeight: 700,
+    fontFamily: 'Heebo, sans-serif',
+    transition: 'transform 0.2s',
+  },
+  newCharBtn: {
+    padding: '.6rem 1.5rem',
+    background: 'rgba(255,107,53,.15)',
+    border: '1px solid rgba(255,107,53,.4)',
+    borderRadius: '10px',
+    color: '#ff6b35',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    fontWeight: 600,
+    fontFamily: 'Heebo, sans-serif',
+    transition: 'transform 0.2s',
+  },
+  wonBanner: {
+    background: 'linear-gradient(90deg, rgba(5,217,232,.15), rgba(123,47,247,.15))',
+    border: '2px solid rgba(5,217,232,.5)',
+    borderRadius: '14px',
+    padding: '1rem',
+    textAlign: 'center',
+    marginBottom: '1rem',
+    animation: 'celebrateWin 0.6s ease-out',
+  },
+  wonText: {
+    fontSize: '1.3rem',
+    fontWeight: 800,
+    color: '#05d9e8',
+  },
+  revealedChar: {
+    fontSize: '1.1rem',
+    color: '#c084fc',
+    marginTop: '.3rem',
+  },
+  roundBadge: {
+    display: 'inline-block',
+    background: 'rgba(123,47,247,.2)',
+    border: '1px solid rgba(123,47,247,.4)',
+    borderRadius: '20px',
+    padding: '.2rem .8rem',
+    fontSize: '.8rem',
+    color: '#c084fc',
+    marginTop: '.5rem',
+  },
+  // ── Question log ──
   questionSection: {
     background: 'rgba(255,255,255,.04)',
     border: '1px solid rgba(5,217,232,.2)',
@@ -256,17 +324,8 @@ const S = {
     marginBottom: '.35rem',
     animation: 'questionSlideIn 0.3s ease-out',
   },
-  questionText: {
-    flex: 1,
-    fontSize: '.9rem',
-    color: '#c0c0e0',
-  },
-  questionNum: {
-    color: '#6060aa',
-    fontSize: '.75rem',
-    fontWeight: 700,
-    minWidth: '20px',
-  },
+  questionText: { flex: 1, fontSize: '.9rem', color: '#c0c0e0' },
+  questionNum: { color: '#6060aa', fontSize: '.75rem', fontWeight: 700, minWidth: '20px' },
   questionDelBtn: {
     background: 'none',
     border: 'none',
@@ -276,155 +335,56 @@ const S = {
     padding: '0 .2rem',
     fontFamily: 'Heebo, sans-serif',
   },
-  // Win / new character
-  actionBar: {
-    display: 'flex',
-    gap: '.75rem',
-    justifyContent: 'center',
-    marginTop: '1rem',
-    flexWrap: 'wrap',
-  },
-  winBtn: {
-    padding: '.6rem 1.5rem',
-    background: 'linear-gradient(90deg, #05d9e8, #7b2ff7)',
-    border: 'none',
-    borderRadius: '10px',
-    color: '#fff',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: 700,
-    fontFamily: 'Heebo, sans-serif',
-    transition: 'transform 0.2s',
-  },
-  newCharBtn: {
-    padding: '.6rem 1.5rem',
-    background: 'rgba(255,107,53,.15)',
-    border: '1px solid rgba(255,107,53,.4)',
-    borderRadius: '10px',
-    color: '#ff6b35',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: 600,
-    fontFamily: 'Heebo, sans-serif',
-    transition: 'transform 0.2s',
-  },
-  wonBanner: {
-    background: 'linear-gradient(90deg, rgba(5,217,232,.15), rgba(123,47,247,.15))',
-    border: '2px solid rgba(5,217,232,.5)',
-    borderRadius: '14px',
-    padding: '1rem',
-    textAlign: 'center',
-    marginBottom: '1rem',
-    animation: 'celebrateWin 0.6s ease-out',
-  },
-  wonText: {
-    fontSize: '1.3rem',
-    fontWeight: 800,
-    color: '#05d9e8',
-  },
-  revealedChar: {
-    fontSize: '1.1rem',
-    color: '#c084fc',
-    marginTop: '.3rem',
-  },
-  // Player picker for join flow
-  joinWrap: {
+  // ── Error + back ──
+  errorWrap: {
     minHeight: '100vh',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #0d0d1a 0%, #12122a 100%)',
+    background: '#0d0d1a',
     padding: '2rem',
+    textAlign: 'center',
     fontFamily: 'Heebo, sans-serif',
     color: '#e0e0ff',
-    gap: '1.5rem',
-  },
-  joinTitle: {
-    fontSize: '1.8rem',
-    fontWeight: 800,
-    background: 'linear-gradient(90deg, #ff2a6d, #7b2ff7)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    textAlign: 'center',
-  },
-  joinSub: {
-    color: '#6060aa',
-    fontSize: '1rem',
-    textAlign: 'center',
-  },
-  joinGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
     gap: '1rem',
-    width: '100%',
-    maxWidth: '500px',
   },
-  joinPlayerBtn: {
-    padding: '1.2rem .75rem',
-    background: 'rgba(123,47,247,.12)',
-    border: '2px solid rgba(123,47,247,.35)',
-    borderRadius: '14px',
-    color: '#e0e0ff',
-    cursor: 'pointer',
-    fontSize: '1.2rem',
-    fontWeight: 700,
-    fontFamily: 'Heebo, sans-serif',
-    textAlign: 'center',
-    transition: 'transform 0.2s, border-color 0.2s',
-  },
-  roundBadge: {
-    display: 'inline-block',
+  backBtn: {
+    marginTop: '1rem',
     background: 'rgba(123,47,247,.2)',
-    border: '1px solid rgba(123,47,247,.4)',
-    borderRadius: '20px',
-    padding: '.2rem .8rem',
-    fontSize: '.8rem',
+    border: '1px solid rgba(123,47,247,.5)',
+    borderRadius: '10px',
     color: '#c084fc',
-    marginTop: '.5rem',
+    cursor: 'pointer',
+    padding: '.75rem 1.5rem',
+    fontSize: '1rem',
+    fontFamily: 'Heebo, sans-serif',
+    transition: 'transform 0.15s',
   },
 };
 
-export default function PlayerPage({ gameIdOrEncoded, myIndex, navigate }) {
-  const [selectedPlayer, setSelectedPlayer] = useState(myIndex);
+export default function PlayerPage({ encoded, navigate }) {
+  const [myIndex, setMyIndex] = useState(null);
   const [won, setWon] = useState(false);
   const [revealedChar, setRevealedChar] = useState('');
   const [questionText, setQuestionText] = useState('');
   const [questions, setQuestions] = useState([]);
   const [roundNum, setRoundNum] = useState(1);
-  const [questionsLoaded, setQuestionsLoaded] = useState(false);
+  const [players, setPlayers] = useState(null);
 
-  // Determine if this is a short game ID or legacy encoded
-  const isShortId = gameIdOrEncoded && gameIdOrEncoded.length <= 10;
-  const isJoinFlow = myIndex !== myIndex || String(myIndex) === 'NaN';
-  const isJoinRoute = window.location.hash.endsWith('/join');
-
+  // Decode game data from URL
   const gameData = useMemo(() => {
-    if (!gameIdOrEncoded) return null;
-    if (isShortId) {
-      const session = loadGameSession(gameIdOrEncoded);
-      return session;
-    }
-    // Legacy: full encoded data
-    return decodeGame(gameIdOrEncoded);
-  }, [gameIdOrEncoded, isShortId]);
+    if (!encoded) return null;
+    return decodeGame(encoded);
+  }, [encoded]);
 
-  // Load question log once we know gameId and player index
-  const gameId = isShortId ? gameIdOrEncoded : null;
-
-  const loadQuestions = useCallback(() => {
-    if (gameId && !isNaN(selectedPlayer) && !questionsLoaded) {
-      setQuestions(getQuestionLog(gameId, selectedPlayer));
-      setQuestionsLoaded(true);
-    }
-  }, [gameId, selectedPlayer, questionsLoaded]);
-
-  // Load questions on first valid render
-  if (gameId && !isNaN(selectedPlayer) && !questionsLoaded) {
-    loadQuestions();
+  // Initialize players from decoded data once
+  if (gameData && !players) {
+    setPlayers(gameData.players);
   }
 
-  if (!gameData || !Array.isArray(gameData.players)) {
+  // Error state
+  if (!gameData || !gameData.players) {
     return (
       <div style={S.errorWrap}>
         <div style={{ fontSize: '3rem' }}>😕</div>
@@ -435,25 +395,26 @@ export default function PlayerPage({ gameIdOrEncoded, myIndex, navigate }) {
     );
   }
 
-  const { players } = gameData;
+  const currentPlayers = players || gameData.players;
 
-  // Join flow: show player selection
-  if (isJoinRoute) {
+  // ── Name picker ──
+  if (myIndex === null) {
     return (
-      <div style={S.joinWrap}>
-        <div style={{ fontSize: '3rem', animation: 'floatBounce 3s ease-in-out infinite' }}>🎭</div>
-        <div style={S.joinTitle}>מי אני?</div>
-        <div style={S.joinSub}>בחר את השם שלך כדי להצטרף למשחק</div>
-        <div style={S.joinGrid}>
-          {players.map((p, i) => (
+      <div style={S.pickerWrap}>
+        <div style={{ fontSize: '4rem', animation: 'floatBounce 3s ease-in-out infinite' }}>🎭</div>
+        <div style={S.pickerTitle}>מי אני?</div>
+        <div style={S.pickerSub}>בחר את השם שלך כדי להיכנס למשחק</div>
+        <div style={S.pickerGrid}>
+          {currentPlayers.map((p, i) => (
             <button
               key={i}
-              style={S.joinPlayerBtn}
+              style={S.pickerBtn}
               onClick={() => {
-                window.location.hash = `play/${gameIdOrEncoded}/${i}`;
+                setMyIndex(i);
+                setQuestions(getQuestionLog(encoded, p.name));
               }}
-              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.borderColor = '#7b2ff7'; }}
-              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.borderColor = 'rgba(123,47,247,.35)'; }}
+              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.borderColor = '#7b2ff7'; e.target.style.background = 'rgba(123,47,247,.25)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.borderColor = 'rgba(123,47,247,.35)'; e.target.style.background = 'rgba(123,47,247,.12)'; }}
             >
               {getEmoji(i)} {p.name}
             </button>
@@ -463,54 +424,56 @@ export default function PlayerPage({ gameIdOrEncoded, myIndex, navigate }) {
     );
   }
 
-  const me = players[selectedPlayer];
-  const others = players.filter((_, i) => i !== selectedPlayer);
+  // ── Game view ──
+  const me = currentPlayers[myIndex];
+  const others = currentPlayers.filter((_, i) => i !== myIndex);
 
   const handleAddQuestion = () => {
     const text = questionText.trim();
-    if (!text || !gameId) return;
-    const updated = addQuestion(gameId, selectedPlayer, text);
+    if (!text) return;
+    const updated = addQuestion(encoded, me.name, text);
     setQuestions([...updated]);
     setQuestionText('');
   };
 
   const handleRemoveQuestion = (qi) => {
-    if (!gameId) return;
-    const updated = removeQuestion(gameId, selectedPlayer, qi);
+    const updated = removeQuestion(encoded, me.name, qi);
     setQuestions([...updated]);
   };
 
   const handleWin = () => {
     setWon(true);
-    setRevealedChar(me?.character || '');
+    setRevealedChar(me.character);
   };
 
   const handleNewCharacter = () => {
-    if (!gameId) return;
     const db = loadDB();
-    const pool = getAllCharacters(db).map(c => c.name);
-    const usedChars = players.map(p => p.character);
-    const remaining = pool.filter(c => !usedChars.includes(c));
+    const pool = getAllCharacters(db);
+    const usedChars = currentPlayers.map((p) => p.character);
+    const remaining = pool.filter((c) => !usedChars.includes(c.name));
     const src = remaining.length > 0 ? remaining : pool;
-    const newChar = src[Math.floor(Math.random() * src.length)];
-    const catName = getAllCharacters(db).find(c => c.name === newChar)?.categoryName || '';
+    const pick = src[Math.floor(Math.random() * src.length)];
 
-    updatePlayerInSession(gameId, selectedPlayer, { character: newChar, categoryName: catName });
+    const updatedPlayers = [...currentPlayers];
+    updatedPlayers[myIndex] = { ...updatedPlayers[myIndex], character: pick.name, categoryName: pick.categoryName };
+    setPlayers(updatedPlayers);
 
-    // Update local state
-    players[selectedPlayer] = { ...players[selectedPlayer], character: newChar, categoryName: catName };
+    // Update the URL hash so QR/link stays consistent for this player
+    const { origin, pathname } = window.location;
+    const newEncoded = encodeGame(updatedPlayers);
+    window.history.replaceState(null, '', `${origin}${pathname}#play/${newEncoded}`);
+
     setWon(false);
     setRevealedChar('');
-    setRoundNum(r => r + 1);
+    setRoundNum((r) => r + 1);
     setQuestions([]);
-    setQuestionsLoaded(false);
   };
 
   return (
     <div style={S.page}>
       <div style={S.header}>
         <div style={S.gameTitle}>🎭 מי אני?</div>
-        <div style={S.subTitle}>{players.length} שחקנים במשחק</div>
+        <div style={S.subTitle}>{currentPlayers.length} שחקנים במשחק</div>
         {roundNum > 1 && <div style={S.roundBadge}>סבב {roundNum}</div>}
       </div>
 
@@ -522,11 +485,11 @@ export default function PlayerPage({ gameIdOrEncoded, myIndex, navigate }) {
         </div>
       )}
 
-      {/* My card - character hidden */}
+      {/* My card */}
       <div style={S.myCard}>
         <div style={S.myCardGlow} />
         <div style={S.myLabel}>הדמות שלך:</div>
-        <div style={S.myName}>{me?.name}</div>
+        <div style={S.myName}>{me.name}</div>
         {!won ? (
           <div style={S.hiddenBadge}>
             ? ? ?
@@ -538,12 +501,12 @@ export default function PlayerPage({ gameIdOrEncoded, myIndex, navigate }) {
             background: 'rgba(5,217,232,.15)',
             borderColor: 'rgba(5,217,232,.5)',
             color: '#05d9e8',
+            borderStyle: 'solid',
           }}>
             {revealedChar}
           </div>
         )}
 
-        {/* Action buttons */}
         <div style={S.actionBar}>
           {!won && (
             <button
@@ -555,20 +518,18 @@ export default function PlayerPage({ gameIdOrEncoded, myIndex, navigate }) {
               🏆 ניחשתי נכון!
             </button>
           )}
-          {gameId && (
-            <button
-              style={S.newCharBtn}
-              onClick={handleNewCharacter}
-              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-            >
-              🔄 דמות חדשה
-            </button>
-          )}
+          <button
+            style={S.newCharBtn}
+            onClick={handleNewCharacter}
+            onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+          >
+            🔄 דמות חדשה
+          </button>
         </div>
       </div>
 
-      {/* Others */}
+      {/* Others' cards */}
       <div style={S.divider}>
         <div style={S.dividerLine} />
         <span>👥 הדמויות של שאר השחקנים</span>
@@ -578,7 +539,7 @@ export default function PlayerPage({ gameIdOrEncoded, myIndex, navigate }) {
       <div style={S.grid}>
         {others.map((player, i) => (
           <div
-            key={i}
+            key={`${player.name}-${i}`}
             style={{
               ...S.card,
               background: getCardGradient(i),
@@ -597,50 +558,48 @@ export default function PlayerPage({ gameIdOrEncoded, myIndex, navigate }) {
       </div>
 
       {/* Question log */}
-      {gameId && (
-        <div style={S.questionSection}>
-          <div style={S.questionTitle}>
-            <span>📝</span>
-            <span>שאלות ששאלתי ({questions.length})</span>
-          </div>
-          <div style={S.questionInputRow}>
-            <input
-              style={S.questionInput}
-              placeholder="תעד שאלה ששאלת..."
-              value={questionText}
-              onChange={(e) => setQuestionText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddQuestion()}
-            />
-            <button style={S.questionAddBtn} onClick={handleAddQuestion}>+ הוסף</button>
-          </div>
-          {questions.length > 0 && (
-            <div>
-              {questions.map((q, qi) => (
-                <div key={qi} style={S.questionItem}>
-                  <span style={S.questionNum}>{qi + 1}.</span>
-                  <span style={S.questionText}>{q.text}</span>
-                  <button
-                    style={S.questionDelBtn}
-                    onClick={() => handleRemoveQuestion(qi)}
-                    title="מחק"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+      <div style={S.questionSection}>
+        <div style={S.questionTitle}>
+          <span>📝</span>
+          <span>שאלות ששאלתי ({questions.length})</span>
         </div>
-      )}
+        <div style={S.questionInputRow}>
+          <input
+            style={S.questionInput}
+            placeholder="תעד שאלה ששאלת..."
+            value={questionText}
+            onChange={(e) => setQuestionText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddQuestion()}
+          />
+          <button style={S.questionAddBtn} onClick={handleAddQuestion}>+ הוסף</button>
+        </div>
+        {questions.length > 0 && (
+          <div>
+            {questions.map((q, qi) => (
+              <div key={qi} style={S.questionItem}>
+                <span style={S.questionNum}>{qi + 1}.</span>
+                <span style={S.questionText}>{q.text}</span>
+                <button
+                  style={S.questionDelBtn}
+                  onClick={() => handleRemoveQuestion(qi)}
+                  title="מחק"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div style={{ marginTop: '2rem', textAlign: 'center' }}>
         <button
           style={S.backBtn}
-          onClick={() => navigate('home')}
+          onClick={() => setMyIndex(null)}
           onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
           onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
         >
-          ← לעמוד הראשי
+          ← חזור לבחירת שם
         </button>
       </div>
     </div>

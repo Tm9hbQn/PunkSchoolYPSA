@@ -1,7 +1,7 @@
 import { DEFAULT_DB } from '../data/defaultCharacters.js';
 
 const DB_KEY = 'guessing_game_db';
-const GAMES_KEY = 'guessing_game_sessions';
+const QLOG_KEY = 'guessing_game_questions';
 
 // ── Character database (localStorage) ──────────────────────────────────────
 
@@ -50,71 +50,50 @@ export function assignCharacters(playerNames, db, categoryId = null) {
   }));
 }
 
-// ── URL encode / decode ─────────────────────────────────────────────────────
+// ── Compact URL encode / decode ─────────────────────────────────────────────
+// Uses short keys: p=players, n=name, c=character, t=categoryName
+// This keeps URLs as short as possible for QR codes.
 
 export function encodeGame(players) {
-  const json = JSON.stringify({ players, v: 1 });
-  return btoa(encodeURIComponent(json));
+  const compact = players.map((p) => ({
+    n: p.name,
+    c: p.character,
+    t: p.categoryName || '',
+  }));
+  const json = JSON.stringify(compact);
+  // Use encodeURIComponent to handle Hebrew, then btoa for URL-safe base64
+  return btoa(unescape(encodeURIComponent(json)));
 }
 
 export function decodeGame(encoded) {
   try {
-    const json = decodeURIComponent(atob(encoded));
-    return JSON.parse(json);
+    const json = decodeURIComponent(escape(atob(encoded)));
+    const compact = JSON.parse(json);
+    if (!Array.isArray(compact)) return null;
+    const players = compact.map((p) => ({
+      name: p.n,
+      character: p.c,
+      categoryName: p.t || '',
+    }));
+    return { players };
   } catch {
     return null;
   }
 }
 
-// ── Game session storage (short IDs) ────────────────────────────────────────
+// ── Build the single game URL ───────────────────────────────────────────────
 
-function loadGames() {
-  try {
-    const raw = localStorage.getItem(GAMES_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return {};
+export function buildGameUrl(players, gamePageUrl) {
+  const encoded = encodeGame(players);
+  return `${gamePageUrl}#play/${encoded}`;
 }
 
-function saveGames(games) {
-  localStorage.setItem(GAMES_KEY, JSON.stringify(games));
+// ── Question log (per encoded-game hash + player name, in localStorage) ─────
+
+function questionKey(gameHash, playerName) {
+  // Use first 12 chars of encoded data + player name as key
+  return `q_${gameHash.slice(0, 12)}_${playerName}`;
 }
-
-export function saveGameSession(gameId, players) {
-  const games = loadGames();
-  games[gameId] = { players, createdAt: Date.now() };
-  saveGames(games);
-}
-
-export function loadGameSession(gameId) {
-  const games = loadGames();
-  return games[gameId] || null;
-}
-
-export function updatePlayerInSession(gameId, playerIndex, updates) {
-  const games = loadGames();
-  if (!games[gameId]) return;
-  games[gameId].players[playerIndex] = { ...games[gameId].players[playerIndex], ...updates };
-  saveGames(games);
-}
-
-// ── Build per-player shareable links (short game ID) ────────────────────────
-
-export function buildPlayerLinks(players, gamePageUrl) {
-  const gameId = shortId();
-  saveGameSession(gameId, players);
-  return {
-    gameId,
-    links: players.map((_, i) => {
-      const url = `${gamePageUrl}#play/${gameId}/${i}`;
-      return { name: players[i].name, url };
-    }),
-  };
-}
-
-// ── Question log (per player, per game) ─────────────────────────────────────
-
-const QLOG_KEY = 'guessing_game_questions';
 
 function loadAllQuestionLogs() {
   try {
@@ -128,36 +107,26 @@ function saveAllQuestionLogs(logs) {
   localStorage.setItem(QLOG_KEY, JSON.stringify(logs));
 }
 
-export function getQuestionLog(gameId, playerIndex) {
+export function getQuestionLog(gameHash, playerName) {
   const logs = loadAllQuestionLogs();
-  const key = `${gameId}_${playerIndex}`;
+  const key = questionKey(gameHash, playerName);
   return logs[key] || [];
 }
 
-export function addQuestion(gameId, playerIndex, question) {
+export function addQuestion(gameHash, playerName, question) {
   const logs = loadAllQuestionLogs();
-  const key = `${gameId}_${playerIndex}`;
+  const key = questionKey(gameHash, playerName);
   if (!logs[key]) logs[key] = [];
   logs[key].push({ text: question, time: Date.now() });
   saveAllQuestionLogs(logs);
   return logs[key];
 }
 
-export function removeQuestion(gameId, playerIndex, questionIndex) {
+export function removeQuestion(gameHash, playerName, questionIndex) {
   const logs = loadAllQuestionLogs();
-  const key = `${gameId}_${playerIndex}`;
+  const key = questionKey(gameHash, playerName);
   if (!logs[key]) return [];
   logs[key].splice(questionIndex, 1);
   saveAllQuestionLogs(logs);
   return logs[key];
-}
-
-// ── ID generator ───────────────────────────────────────────────────────────
-
-export function shortId() {
-  return Math.random().toString(36).slice(2, 8);
-}
-
-export function uid() {
-  return Math.random().toString(36).slice(2, 9);
 }
